@@ -1,13 +1,14 @@
-const fs         = require('fs-extra');
-const path       = require('path');
-const cssSelect  = require('css-select');
-const cssAdapter = require('./src/htmlparser/CSSAdapter');
-const htmlParser = require('./src/htmlparser/HTMLParser');
-const parseUtil  = require('./src/utils/ParseUtil');
-const cssColor   = require('./src/utils/CSSColor');
-const KCConfig   = require('./src/config/KCConfig');
-const VNode      = require('./src/node/VNode');
-const Graph      = require('./src/node/DependencyGraph');
+const fs            = require('fs-extra');
+const path          = require('path');
+const cssSelect     = require('css-select');
+const cssAdapter    = require('./src/htmlparser/CSSAdapter');
+const htmlParser    = require('./src/htmlparser/HTMLParser');
+const parseUtil     = require('./src/utils/ParseUtil');
+const cssColor      = require('./src/utils/CSSColor');
+const KCConfig      = require('./src/config/KCConfig');
+const VNode         = require('./src/node/VNode');
+const Graph         = require('./src/node/DependencyGraph');
+const astCollection = require('./src/utils/ASTParse').astCollection;
 
 const TagName = {
     template : "template",
@@ -158,8 +159,15 @@ class FileProcess {
                     allTasks.push(fs.writeFile(saveItem.dirPath, data));
                 }
             }
+
+            // 写入ast 文件
+            const astSavePath = path.join(this.kcConfig.distPath, 'kc.ast.json');
+            const astJSON = JSON.stringify(astCollection(), null , 2);
+            allTasks.push(fs.writeFile(astSavePath, astJSON));
+
             return Promise.all(allTasks);
         }).then(()=>{
+            // 写入ast 文件
             console.log("编译结束"); 
         })
         .catch((error)=>{
@@ -172,6 +180,7 @@ class FileProcess {
         const astNode = fileNode.node.makeNativeAST();
         const data = {
             template: astNode,
+            componentName:fileNode.componentName
         };
 
         const cssKeys = Object.keys(fileNode.styles);
@@ -270,13 +279,15 @@ class FileProcess {
         return new Promise((resolve)=> {
             const kcConfig = new KCConfig(kcConfigPath);
             // 将源码复制到build目录，方便进行下一步操作
-            fs.copy(kcConfig.srcFolderPath, kcConfig.distPath)
+            const distPath = kcConfig.distPath;
+            fs.copy(kcConfig.srcFolderPath, distPath)
             .then(()=>{
                 const dirname    = path.dirname(kcConfigPath);   
                 const folderName = path.basename(dirname);
                 const fixPath    = path.join(dirname,`../build/${folderName}/kc.config.json`);
                 // 重新修正路径用新的kc.config.json 的路径
                 kcConfig.configWithJSONPath(fixPath);
+                kcConfig.distPath = distPath;
 
                 // 给VNode 设置组件节点信息 方便VNode 自己处理信息
                 VNode.setComponetsInfo(kcConfig.originComponents);

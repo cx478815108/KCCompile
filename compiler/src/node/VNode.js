@@ -5,7 +5,7 @@ const ASTForNode       = require('../NativeAST/ASTForNode');
 const ASTLayoutNode    = require('../NativeAST/ASTLayoutNode');
 const ASTUINode        = require('../NativeAST/ASTUINode');
 const ASTComponentNode = require('../NativeAST/ASTComponentNode');
-const ASTParse         = require('../utils/ASTParse');
+const ASTParse         = require('../utils/ASTParse').parse;
 
 const VNodeControlExpression = {
     if    : "v:if",
@@ -215,11 +215,8 @@ class VNode {
 
         const dynamicValue = value.replace(/{{/g, "").replace(/}}/g, "").trim();
         const dynamicKey   = key.substring(1, key.length);
-        const ast = ASTParse(dynamicValue);
-        this.dynamicAttributes[dynamicKey] = {
-            raw:dynamicValue,
-            ast
-        };
+        const astId = ASTParse(dynamicValue).id;
+        this.dynamicAttributes[dynamicKey] = astId;
     }
 
     processAttributes() {
@@ -244,7 +241,7 @@ class VNode {
 
         const click = this.staticAttributes["@click"];
         if(click && click.length) {
-            this.clickAST = ASTParse(click);
+            this.clickAST = ASTParse(click).id;
             delete this.staticAttributes["@click"];
         }
 
@@ -294,10 +291,10 @@ class VNode {
             }
 
             if(exp.length) {
-                const ast = ASTParse(exp);
+                const astId = ASTParse(exp).id;
                 const nodeSetterkey     = key + "AST";
                 const nodeExpSetterKey  = nodeSetterkey + "Expression";
-                this [nodeSetterkey]    = ast;
+                this [nodeSetterkey]    = astId;
                 this [nodeExpSetterKey] = exp;
                 const type = VNodeIfConditionType[VNodeControlExpression[key]];
                 // 这里可能包括else
@@ -321,7 +318,7 @@ class VNode {
         }
         const text = this.text.substring(2, this.text.length - 2);
         try {
-            this.textAST = ASTParse(text);
+            this.textAST = ASTParse(text).id;
         } catch (error) {
             const msg = `节点：<${this.tagName}> 文本内容:${this.text} 语法有问题 ⚠️⚠️⚠️`
             throw new Error(msg);

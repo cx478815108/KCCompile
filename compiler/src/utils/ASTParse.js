@@ -1,46 +1,28 @@
 const {Parser} = require("acorn")
 
-const filterValues = {
-    start: true,
-    end: true,
-    sourceType : true,
-    init : true,
-    await : true,
-    kind : true
-}
+let id = 0;
+const collection = {};
 
-class AST {
-    constructor(ast) {
-        for (let key in ast) {
-            const item = ast[key];
-            if(filterValues[key] || !item) {
-                continue;
-            }
-
-            if (typeof item === "object") {
-                if (Array.isArray(item)) {
-                    const list = [];
-                    for (let n of item) {
-                        list.push(new AST(n));
-                    }
-
-                    if (list.length) {
-                        this[key] = list;
-                    }
-                } else {
-                    this[key] = new AST(item);
-                }
-                continue;
-            }
-
-            this[key] = ast[key];
-        }
-    }
+function ASTIdentifierAlloc() {
+    id += 1;
+    return `ast-${id}`;
 }
 
 const ASTParse = (expression) => {
-    const ast = new AST(Parser.parse(expression).body[0]);
-    return ast;
+    const id = ASTIdentifierAlloc();
+    const ast = Parser.parse(expression);
+    collection[id] = ast;
+    return {
+        ast,
+        id
+    };
 }
 
-module.exports = ASTParse;
+const astCollection = ()=>{
+    return collection;
+}
+
+module.exports = {
+    parse:ASTParse,
+    astCollection
+};
