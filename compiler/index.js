@@ -13,7 +13,8 @@ const astCollection = require('./src/utils/ASTParse').astCollection;
 const TagName = {
     template : "template",
     script : "script",
-    style : "style"
+    style : "style",
+    link : "link"
 }
 
 const nodeTool = {
@@ -42,6 +43,19 @@ const nodeTool = {
         return scriptNode.text;
     },
 
+    processLinkNodes(document, baseKCPath, componentName) {
+        const linkNodes = this.findTargetTag(document, TagName.link);
+        const paths = [];
+        for(let node of linkNodes) {
+            const href = node.attributes['href'];
+            const linkFilePath = path.resolve(baseKCPath, href);
+            paths.push(linkFilePath);
+        }
+        return {
+            paths,
+            componentName
+        };
+    },
 
     processStyleTags(document) {
         // 寻找到style 节点
@@ -53,7 +67,7 @@ const nodeTool = {
             "border-color"     : true
         }
 
-        // 可能一个文件内部有多个<style></style> 但是需要把所有的内容合并
+        // 可能一个文件内部有多个<style></style> 但是需要把所有的内容拼接起来
         for(let styleNode of styleNodes) {
             const styleText = styleNode.text;
             const ruleStore = parseUtil.parseCSSString(styleText);
@@ -117,6 +131,7 @@ class FileProcess {
     constructor() {
         this.kcConfig = null;
         this.allComponentVNode = {};
+        this.linkNodeInfos = [];
     }
 
     startProcess(file) {
@@ -161,17 +176,28 @@ class FileProcess {
             }
 
             // 写入ast 文件
-            const astSavePath = path.join(this.kcConfig.distPath, 'kc.ast.json');
+            const astSavePath = path.join(this.kcConfig.distPath, 'kc.ast.js');
             const astJSON = JSON.stringify(astCollection(), null , 2);
-            allTasks.push(fs.writeFile(astSavePath, astJSON));
+            const asts = `$token.registASTs(${astJSON})`;
+            allTasks.push(fs.writeFile(astSavePath, asts));
 
             return Promise.all(allTasks);
         }).then(()=>{
+            // 写入CSS 文件
+            return this.processCSS;
+        })
+        .then(()=>{
             // 写入ast 文件
             console.log("编译结束"); 
         })
         .catch((error)=>{
             console.log("[KCNative] 错误:error", error);
+        });
+    }
+
+    processCSS() {
+        return new Promise((resolve, reject)=>{
+            resolve();
         });
     }
 
@@ -310,6 +336,10 @@ class FileProcess {
                 const componentName = this.kcConfig.reverseComponents[filePath] || "$enter";
                 const htmlNode = nodeTool.processTemplateTag(document);
                 const styles =  nodeTool.processStyleTags(document);
+                const baseKCPath =  path.dirname(filePath);
+                const linkNodeInfo = nodeTool.processLinkNodes(document, baseKCPath, componentName);
+                this.linkNodeInfos.push(linkNodeInfo);
+
                 nodeTool.preprocessCSS(htmlNode, styles);
                 resolve({
                     node : htmlNode.recursiveToVNode(),

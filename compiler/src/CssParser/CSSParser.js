@@ -302,17 +302,6 @@ class CSSParser {
     }
 }
 
-/* 
-1. 将body 做对象，然后不同媒体查询下的条件放进不同的属性 同时记录id
-2. 同时CssStyleSheet 维护一张媒体查询表 根据id查询 不同的媒体查询条件
-3. 同时媒体查询表格，维护维护id 映射到内存对象上，方便统一修改，内存对象上标记 是否正在使用
-*/
-
-/* 
-1. 收集所有的变量，根据范围进行存储，生成唯一ID，CSS 不管是否有媒体查询的条件，如果属性有var()，只需要根据某个ID 去定位到该变量池，然后再在变量池获取即可
-2. 
-*/
-
 const css = `
 .box {
     --bga:orange;
@@ -365,3 +354,5 @@ const parser = new CSSParser();
 const styleSheet = parser.parse(css);
 console.log(JSON.stringify(styleSheet, null, 2));
 console.log('----✅');
+
+// to-do 1. 分析每个变量对应的变量池，注意是每个var(--a) 不是一个propertySet
