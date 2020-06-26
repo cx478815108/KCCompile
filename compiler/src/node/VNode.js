@@ -9,7 +9,6 @@ const ASTParse         = require('../utils/ASTParse').parse;
 
 const VNodeControlExpression = {
     if    : "v:if",
-    for   : "v:for",
     elseIf: "v:else-if",
     else  : "v:else",
 }
@@ -115,17 +114,6 @@ class VNode {
             node.clickAST = this.clickAST;
         }
 
-        if (!this.isComponent) {
-            // 如果没有指定DOM 节点的width,height 并且不是动态的，添加默认的实现
-            if (!this.staticAttributes['width'] && !this.dynamicAttributes['width']) {
-                this.staticAttributes['width'] = 'auto';
-            }
-
-            if (!this.staticAttributes['height'] && !this.dynamicAttributes['height']) {
-                this.staticAttributes['height'] = 'auto';
-            }
-        }
-
         return node;
     }
 
@@ -193,6 +181,8 @@ class VNode {
 
         // 处理控制流
         this.processConditions();
+
+        this.processForExpression();
 
         // 首先将style 里的数据提取出来
         this.processStyle();
@@ -282,7 +272,7 @@ class VNode {
     }
 
     processConditions() {
-        // 将v:for v:if 等解析为AST
+        // 将 v:if 等解析为AST
         for(let key in VNodeControlExpression) {
             let exp = this.attributes[VNodeControlExpression[key]];
             exp = exp ? exp.replace("{{","").replace("}}","").trim() : "";
@@ -305,6 +295,18 @@ class VNode {
         const elseAttr = this.attributes[VNodeControlExpression.else];
         if (elseAttr !== undefined) {
             this.ifConditionType = "else";
+        }
+    }
+
+    processForExpression() {
+        let exp = this.attributes['v:for'];
+        exp = exp ? exp.replace("{{","").replace("}}","").trim() : "";
+        if (exp.startsWith('for')) {
+            exp = exp + "{}";
+        }
+
+        if(exp.length) {
+            this.forAST =  ASTParse(exp).ast;
         }
     }
 
@@ -331,6 +333,7 @@ class VNode {
     }
 
     createNativeUINodeOrLayoutNode() {
+
         if (this.isLayoutNode) {
             const layoutNode   = new ASTLayoutNode();
             layoutNode.content = this.cloneMainInfo();
@@ -345,15 +348,26 @@ class VNode {
             return componentNode;
         }
 
-        const uiNode       = new ASTUINode();
-        uiNode.content     = this.cloneMainInfo();
+        const uiNode   = new ASTUINode();
+        uiNode.content = this.cloneMainInfo();
         return uiNode;
     }
 
     createNativeForNode() {
         const forNode    = new ASTForNode();
-        forNode.ast.node = this.forAST;
-        forNode.ast.expression = this.forASTExpression;
+        const node = this.forAST.body[0];
+        const left = node.left;
+        const elements = left.declarations[0].id.elements;
+        const declarations = [];
+        for (let elementNode of elements) {
+            declarations.push(elementNode.name);
+        }
+
+        const right = ASTParse(node.right.name).id;
+        forNode.setForAST({
+            declarations,
+            right
+        });
         return forNode;
     }
 
@@ -380,10 +394,9 @@ class VNode {
 
     makeASTForNode() {
         const forNode = this.createNativeForNode();
-        for (let child of this.children) {
-            const childExcuseNode = child.makeASTNode();
-            forNode.addChildNode(childExcuseNode);
-        }
+        const entityNode = this.makeASTNormalNode();
+        delete entityNode.content.staticAttributes['v:for'];
+        forNode.addChildNode(entityNode);
         return forNode;
     }
 

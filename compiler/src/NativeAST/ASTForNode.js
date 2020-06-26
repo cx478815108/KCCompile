@@ -1,14 +1,18 @@
 class ASTForNode{
     constructor() {
         this.type = "KCASTForNode";
-        this.ast  = {expression:"",node:{}};
         this.body = [];
+        this.ast = {};
     }
 
     addChildNode(excuseNode) {
         if(excuseNode) {
             this.body.push(excuseNode);
         }
+    }
+
+    setForAST(ast) {
+        this.ast = ast;
     }
 }
 

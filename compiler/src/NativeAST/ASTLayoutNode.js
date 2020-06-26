@@ -2,6 +2,7 @@ class ASTLayoutNode{
     constructor() {
         this.type = "KCASTLayoutNode";
         this.body = []; 
+        this.content = null;
     }
 
     addChildNode(node) {
