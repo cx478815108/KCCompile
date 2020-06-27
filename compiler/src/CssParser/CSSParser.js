@@ -1,4 +1,8 @@
 const CSSOM = require('cssom');
+const CSSVariablePool = require('./CSSVariablePool');
+const CSSPropertySet = require('./CSSPropertySet');
+const CSSStyleRule = require('./CSSStyleRule');
+const CSSStyleSheet = require('./CSSStyleSheet');
 
 CSSRuleType = {};
 CSSRuleType.UNKNOWN_RULE = 0;                 // obsolete
@@ -19,30 +23,6 @@ CSSRuleType.FONT_FEATURE_VALUES_RULE = 14;
 CSSRuleType.VIEWPORT_RULE = 15;
 CSSRuleType.REGION_STYLE_RULE = 16;
 
-const CSSIdType = {
-    mediaType : 1,
-    propertySetType : 2,
-};
-
-let uniqueId = 0;
-const idTypeMap = {};
-const getUniqueId = (idType, key) => {
-    let keyMap = idTypeMap[''+idType];
-    if (!keyMap) {
-        keyMap = {};
-        idTypeMap[''+idType] = keyMap;
-    }
-
-    let allocId = keyMap[''+key];
-    if (!allocId) {
-        allocId = ''+uniqueId;
-        keyMap[''+key] = uniqueId;
-        uniqueId += 1;
-    }
-
-    return allocId;
-}
-
 const checkKeyIsCssVariable = (key)=> {
     return key.startsWith('--');
 }
@@ -54,178 +34,15 @@ const extractVariable = (value)=> {
     return '';
 }
 
-class CSSVariablePool {
-    constructor(item) {
-        /*
-         --C1: #E6E9F0;
-         --C2: #E6E9F073;
-         */
-        this.vars   = {};
-        this.poolId = "";
-        this.parseItem(item);
-    }
-
-    parseItem(item) {
-        for (let key in item) {
-            this.vars[key] = item[key];
-        }
-    }
-
-    appendPool(cssVariablePool) {
-        if (cssVariablePool.vars) {
-            this.parseItem();
-        }
-    }
-}
-
-class CSSVariable {
-    constructor(key, value) {
-        this.poolId = -1;
-        this.key    = key;
-        this.value  = value;
-    }
-}
-
-class CSSPropertySet {
-    constructor(property) {
-        this.staticPropertySet = {}; // font-size:13dp
-        this.varPropertySet    = {}; // background-color: var(--bg-color);
-        this.parseProperty(property);
-    }
-
-    parseProperty(property) {
-        for (let key in property) {
-            const value = property[key];
-            // 区分变量、静态、动态key values
-            if (key.startsWith('--')) {
-                // 过滤避免外界没有做处理，这里不需要记录变量
-            } else {
-                if (typeof value === 'string') {
-                    if (value.startsWith('var(') && value.endsWith(')')) {
-                        const cssVariable = new CSSVariable(key, value);
-                        this.varPropertySet[key] = cssVariable;
-                    } else {
-                        this.staticPropertySet[key] = value;
-                    }
-                } else {
-                    this.varPropertySet[key] = value;
-                }
-            }
-        }
-    }
-
-    appendPropertySet(propertySet) {
-        if (propertySet.staticPropertySet) {
-            this.parseProperty(propertySet.staticPropertySet);
-        }
-
-        // 这里待处理
-        if (propertySet.varPropertySet) {
-            this.parseProperty(propertySet.varPropertySet);
-        }
-    }
-}
-
-class CSSStyleRule {
-    constructor(selector) {
-        this.selector = selector; // .box
-        this.associatedMediaQuerys = {};
-        if (selector.length) {
-            this.selectorList = this.selector.trim().split(' ');
-        }
-    }
-
-    appendPropertySet(propertySet) {
-        if (!this.propertySet) {
-            this.propertySet = propertySet;
-        }
-
-        this.propertySet.appendPropertySet(propertySet);
-    }
-
-    addAssociatedMediaQuery(mediaQuery) {
-        if (mediaQuery.length > 0) {
-            this.associatedMediaQuerys[mediaQuery] = 1;
-        }
-    }
-}
-
-class CSSStyleSheet {
-    constructor() {
-        this.styleRules         = {};
-        this.styleRuleMedias    = {};
-        this.variablePools      = {};
-        this.mediaVariablePools = {};
-    }
-
-    setStyleRule(selector, cssStyleRule, mediaQuery = '') {
-        const selectedStyleRule = mediaQuery.length ? this.styleRuleMedias : this.styleRules;
-        if (!selectedStyleRule[selector]) {
-            selectedStyleRule[selector] = cssStyleRule;
-        }
-
-        let normalStyleRule = this.styleRules[selector];
-        if (!normalStyleRule) {
-            normalStyleRule = new CSSStyleRule(selector);
-            normalStyleRule.addAssociatedMediaQuery(mediaQuery);
-            this.styleRules[selector] = normalStyleRule;
-        }
-    }
-
-    getStyleRule(selector, mediaQuery = '') {
-        if (mediaQuery.length) {
-            return this.styleRuleMedias[selector];
-        }
-
-        return this.styleRules[selector];
-    }
-
-    addVariablePools(selector, cssVariablePool, mediaQuery = '') {
-        // 普通的直接存储
-        if (mediaQuery.length === 0) {
-            const existedVariablePool = this.variablePools[selector];
-            if (existedVariablePool) {
-                existedVariablePool.appendPool(cssVariablePool);
-            } else {
-                this.variablePools[selector] = cssVariablePool;
-            }
-            return;
-        }
-
-        // 带媒体查询的根据媒体查询存储
-        let mediaPool = this.mediaVariablePools[mediaQuery];
-        if (!mediaPool) {
-            mediaPool = {};
-            this.mediaVariablePools[mediaQuery] = mediaPool;
-        }
-
-        let existedVariablePool = mediaPool[selector];
-        if (!existedVariablePool) {
-            mediaPool[selector] = cssVariablePool;
-        } else {
-            existedVariablePool.appendPool(cssVariablePool);
-        }
-    }
-
-    getVariablePool(selector, mediaQuery = '') {
-
-        if (mediaQuery.length === 0) {
-            return this.variablePools[selector];
-        }
-
-        let mediaPool = this.mediaVariablePools[mediaQuery];
-        if (!mediaPool) {
-            return null;
-        }
-
-        return mediaPool[selector];
-    }
-}
-
 class CSSParser {
+
+    constructor() {
+        this.styleSheet = new CSSStyleSheet();
+    }
+
     parse(cssString) {
         const result = CSSOM.parse(cssString);
-        const styleSheet = new CSSStyleSheet();
+        const styleSheet = this.styleSheet;
         for (let item of result.cssRules) {
             if (item.type === CSSRuleType.STYLE_RULE) {
                 this.processStyleRule(styleSheet, item);
@@ -234,6 +51,12 @@ class CSSParser {
             }
         }
         return styleSheet;
+    }
+
+    parseFinish() {
+        this.findVariableIds();
+        // console.log('开始清除无用的东西');
+        this.deleteUnuseProperty();
     }
 
     processStyleRule(styleSheet, item, mediaQuery = '') {
@@ -266,7 +89,7 @@ class CSSParser {
 
         // 处理CSS 属性
         if (Object.keys(property).length) {
-            const cssPropertySet = new CSSPropertySet(property);
+            const cssPropertySet = new CSSPropertySet(property, mediaQuery);
             // 判断是否存在
             let existedStyleRule = styleSheet.getStyleRule(selector, mediaQuery);
             if (existedStyleRule) {
@@ -300,7 +123,165 @@ class CSSParser {
             }
         }
     }
+
+    findVariableIds() {
+        const styleSheet = this.styleSheet;
+        // 首先处理非媒体查询的rules
+        for (let selector in styleSheet.styleRules) {
+            this.findVariableIdForCssRule(styleSheet.styleRules[selector]);
+        }
+
+        const styleRuleMediaMap = styleSheet.styleRuleMedias; 
+        for (let mediaQuery in styleRuleMediaMap) {
+            const styleRuleMedias = styleRuleMediaMap[mediaQuery];
+            for (let selector in styleRuleMedias) {
+                this.findVariableIdForCssRuleMedia(styleRuleMedias[selector], mediaQuery);
+            }
+        }
+    }
+
+    checkExistVariables(cssRule) {
+        const propertySet = cssRule.propertySet;
+        if (!propertySet) {
+            return false;
+        }
+
+        const varPropertySet = propertySet.varPropertySet;
+        const count = Object.keys(varPropertySet).length;
+        // 没有属性使用变量
+        if (count === 0) {
+            return false;
+        }
+
+        return true;
+    }
+
+    findVariableIdForCssRuleMedia(cssRule, mediaQuery) {
+        if (!this.checkExistVariables(cssRule)) {
+            return;
+        }
+
+        const selector         = cssRule.selector;
+        const selfVariablePool = this.styleSheet.mediaVariablePools[selector];
+        const variablePool     = this.styleSheet.variablePools[selector];
+        const rootVariablePool = this.styleSheet.getRootVariablePool();
+
+        // 先从自己的里面开始找
+        if (!selfVariablePool) {
+            // 再从没有媒体查询的里面开始找
+            if (!variablePool) {
+                // 最后从根里面找
+                if (!rootVariablePool) {
+                    console.log(`[warning] 媒体查询'${mediaQuery}'内，CSS 选择器'${selector}' 未定义变量`);
+                    return;
+                }
+            }
+        }
+
+        const varPropertySet = cssRule.propertySet.varPropertySet;
+        for (let cssVariableKey in varPropertySet) {
+            const cssVariable  = varPropertySet[cssVariableKey];
+            const variableText = extractVariable(cssVariable.value);
+
+            // 1. 首先从自己的styleRule 查变量
+            let queryResult = selfVariablePool && selfVariablePool.vars[variableText];
+            if (queryResult) {
+                cssVariable.poolId = selfVariablePool.poolId;
+                continue;
+            }
+
+            // 2. 其次从不带媒体查询的styleRule 变量池里面查变量
+            queryResult = variablePool && variablePool.vars[variableText];
+            if (queryResult) {
+                cssVariable.poolId = variablePool.poolId;
+                continue;
+            }
+
+            // 3. 最后从跟选择器里面寻找
+            queryResult = rootVariablePool && rootVariablePool.vars[variableText];
+            if (queryResult) {
+                cssVariable.poolId = rootVariablePool.poolId;
+                continue;
+            }
+
+            console.log(`[warning] 媒体查询'${mediaQuery}'内，CSS 选择器'${selector}' 使用了未定义的变量:${cssVariable.value}  该属性将被删除`);
+            cssRule.propertySet.removeUndefinedVariable(cssVariable);
+        }
+    }
+
+    findVariableIdForCssRule(cssRule) {
+        if (!this.checkExistVariables(cssRule)) {
+            return;
+        }
+
+        const selector = cssRule.selector;
+        const selfVariablePool = this.styleSheet.variablePools[selector];
+        const rootVariablePool = this.styleSheet.getRootVariablePool();
+
+        if (!selfVariablePool) {
+            if (!rootVariablePool) {
+                console.log(`[warning] CSS 选择器${selector} 未定义变量`);
+                return;
+            }
+        }
+        
+        const varPropertySet = cssRule.propertySet.varPropertySet;
+        for (let cssVariableKey in varPropertySet) {
+            const cssVariable  = varPropertySet[cssVariableKey];
+            const variableText = extractVariable(cssVariable.value);
+
+            // 首先从自己的styleRule 查变量
+            let queryResult = selfVariablePool && selfVariablePool.vars[variableText];
+            if (queryResult) {
+                cssVariable.poolId = selfVariablePool.poolId;
+                cssRule.propertySet.transfromVariableToStatic(cssVariable, queryResult);
+                continue;
+            }
+
+            // 再从跟选择器里面寻找
+            queryResult = rootVariablePool && rootVariablePool.vars[variableText];
+            if (queryResult) {
+                cssVariable.poolId = rootVariablePool.poolId;
+                cssRule.propertySet.transfromVariableToStatic(cssVariable, queryResult);
+                continue;
+            }
+
+            console.log(`[warning] CSS 选择器${selector} 使用了未定义的变量:${cssVariable.value} 该属性将被删除`);
+            cssRule.propertySet.removeUndefinedVariable(cssVariable);
+        }
+    }
+
+    deleteUnuseProperty() {
+        const styleSheet = this.styleSheet;
+        const styleRuleMediaMap = styleSheet.styleRuleMedias; 
+        // 首先处理媒体查询的rules
+        for (let mediaQuery in styleRuleMediaMap) {
+            const styleRuleMedias = styleRuleMediaMap[mediaQuery];
+            for (let selector in styleRuleMedias) {
+                const cssRule = styleRuleMedias[selector];
+                if (cssRule.isEmptyRule()) {
+                    // 从 styleSheet.styleRules 找到对应的删除 mediaQuery 引用计数
+                    const cssRuleWithoutMediaQuery = styleSheet.getStyleRule(selector, '');
+                    if (cssRuleWithoutMediaQuery) {
+                        cssRuleWithoutMediaQuery.removeAssociatedMediaQuery(mediaQuery);
+                    }
+
+                    styleSheet.removeCssRule(selector, mediaQuery);
+                }
+            }
+        }
+
+        // 再处理非媒体查询的rules
+        for (let selector in styleSheet.styleRules) {
+            const cssRule = styleSheet.styleRules[selector];
+            if (cssRule.isEmptyRule()) {
+                styleSheet.removeCssRule(selector);
+            }
+        }
+    }
 }
+
+module.exports = CSSParser;
 
 const css = `
 .box {
@@ -332,12 +313,12 @@ body {
     font-size: var(--C1);
   }
 
-body {
-    font-size: var(--C2);
-    color:red;
-}
+    body {
+        font-size: var(--C2);
+        color:red;
+    }
 
-a {
+  a {
     color: var(--primary);
     text-decoration-color: var(--secondary);
   }
@@ -350,9 +331,20 @@ a {
   }
 `
 
+const css2 = `
+:root {
+    --C1: #999999;
+    --C2: #999999;
+    --secondary: blue;
+}
+`
+
 const parser = new CSSParser();
-const styleSheet = parser.parse(css);
-console.log(JSON.stringify(styleSheet, null, 2));
+parser.parse(css);
+parser.parse(css2);
+parser.parseFinish();
+
+console.log(JSON.stringify(parser.styleSheet, null, 2));
 console.log('----✅');
 
 // to-do 1. 分析每个变量对应的变量池，注意是每个var(--a) 不是一个propertySet
