@@ -55,7 +55,6 @@ class CSSParser {
 
     parseFinish() {
         this.findVariableIds();
-        // console.log('开始清除无用的东西');
         this.deleteUnuseProperty();
     }
 
@@ -283,68 +282,68 @@ class CSSParser {
 
 module.exports = CSSParser;
 
-const css = `
-.box {
-    --bga:orange;
-    background-color: var(--bga);
-}
+// const css = `
+// .box {
+//     --bga:orange;
+//     background-color: var(--bga);
+// }
 
-:root {
-    --C1: #E6E9F0;
-    --C2: #E6E9F073;
-}
+// :root {
+//     --C1: #E6E9F0;
+//     --C2: #E6E9F073;
+// }
 
-@media screen and (min-width: 768px){
-    body{
-      --primary:  #F7EFD2;
-      --secondary: #7F583F;
-      background-color: red;
-    }
+// @media screen and (min-width: 768px){
+//     body{
+//       --primary:  #F7EFD2;
+//       --secondary: #7F583F;
+//       background-color: red;
+//     }
 
-    b {
-        color: var(--primary);
-        text-decoration-color: var(--secondary);
-    }
-  }
+//     b {
+//         color: var(--primary);
+//         text-decoration-color: var(--secondary);
+//     }
+//   }
 
-body {
-    --primary: #7F583F;
-    --secondary: #F7EFD2;
-    font-size: var(--C1);
-  }
+// body {
+//     --primary: #7F583F;
+//     --secondary: #F7EFD2;
+//     font-size: var(--C1);
+//   }
 
-    body {
-        font-size: var(--C2);
-        color:red;
-    }
+//     body {
+//         font-size: var(--C2);
+//         color:red;
+//     }
 
-  a {
-    color: var(--primary);
-    text-decoration-color: var(--secondary);
-  }
+//   a {
+//     color: var(--primary);
+//     text-decoration-color: var(--secondary);
+//   }
   
-  @media screen and (min-width: 768px) {
-    header {
-      --primary:  #F7EFD2;
-      --secondary: #7F583F;
-    }
-  }
-`
+//   @media screen and (min-width: 768px) {
+//     header {
+//       --primary:  #F7EFD2;
+//       --secondary: #7F583F;
+//     }
+//   }
+// `
 
-const css2 = `
-:root {
-    --C1: #999999;
-    --C2: #999999;
-    --secondary: blue;
-}
-`
+// const css2 = `
+// :root {
+//     --C1: #999999;
+//     --C2: #999999;
+//     --secondary: blue;
+// }
+// `
 
-const parser = new CSSParser();
-parser.parse(css);
-parser.parse(css2);
-parser.parseFinish();
+// const parser = new CSSParser();
+// parser.parse(css);
+// parser.parse(css2);
+// parser.parseFinish();
 
-console.log(JSON.stringify(parser.styleSheet, null, 2));
-console.log('----✅');
+// console.log(JSON.stringify(parser.styleSheet, null, 2));
+// console.log('----✅');
 
 // to-do 1. 分析每个变量对应的变量池，注意是每个var(--a) 不是一个propertySet
