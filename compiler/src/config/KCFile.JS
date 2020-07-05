@@ -49,10 +49,10 @@ class KCFile {
             // 通过script 标签引入的事直接复制黏贴，通过 require是运行时导入
             let content = '';
             this.scriptImportPaths.forEach((path)=>{
-                const script = fs.readFileSync(path);
+                const script = fs.readFileSync(path).toString();
                 if (script.length) {
                     // 隔离作用域
-                    content += `(()=>{${script.trim()}})()`;
+                    content += `\n//src:${path}\n(()=>{\n${script.trim()}\n})()`;
                 }
             });
 
