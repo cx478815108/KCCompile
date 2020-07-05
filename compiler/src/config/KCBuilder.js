@@ -1,8 +1,9 @@
-const fs    = require('fs-extra');
-const VNode = require('../node/VNode');
-const path  = require('path');
-const KCFile = require('./KCFile');
-const Graph  = require('../node/DependencyGraph');
+const fs            = require('fs-extra');
+const VNode         = require('../node/VNode');
+const path          = require('path');
+const KCFile        = require('./KCFile');
+const astCollection = require('../utils/ASTParse').astCollection;
+// const Graph         = require('../node/DependencyGraph');
 
 const kEnterNodeName = "$enter";
 
@@ -41,6 +42,8 @@ class KCBuilder {
         }
 
         this.saveConfigJSON();
+        this.saveASTCollection();
+        console.log('[Success] 编译完成✅✅✅');
     }
 
     saveConfigJSON() {
@@ -55,7 +58,7 @@ class KCBuilder {
         }
         const saveConfigJSON = JSON.parse(JSON.stringify(this.originConfigJSON));
         components.push({
-            name: '$enter',
+            name: kEnterNodeName,
             path: this.originConfigJSON['entrance']
         })
         saveConfigJSON['components'] = components;
@@ -64,7 +67,13 @@ class KCBuilder {
         const saveText = JSON.stringify(saveConfigJSON, null, 2);
         const savePath = path.resolve(this.srcFolderPath, 'kc.config.json');
         fs.writeFileSync(savePath, saveText);
-        console.log('[Success] 编译完成✅✅✅');
+    }
+
+    saveASTCollection() {
+        const astSavePath = path.resolve(this.srcFolderPath, 'kc.ast.js');
+        const astJSON     = JSON.stringify(astCollection(), null , 2);
+        const asts        = `$token.registASTs(${astJSON})`;
+        fs.writeFile(astSavePath, asts);
     }
 
     /* 获取通过kc.config.json 注册的组件信息 */

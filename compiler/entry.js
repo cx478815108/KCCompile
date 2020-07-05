@@ -1,14 +1,6 @@
-const fs            = require('fs-extra');
-const path          = require('path');
-const cssSelect     = require('css-select');
-const cssAdapter    = require('./src/htmlparser/CSSAdapter');
-const parseUtil     = require('./src/utils/ParseUtil');
-const cssColor      = require('./src/utils/CSSColor');
-const KCConfig      = require('./src/config/KCConfig');
-const VNode         = require('./src/node/VNode');
-const Graph         = require('./src/node/DependencyGraph');
-const astCollection = require('./src/utils/ASTParse').astCollection;
-const builder       = require('./src/config/KCBuilder');
+const fs      = require('fs-extra');
+const path    = require('path');
+const builder = require('./src/config/KCBuilder');
 
 const configJSONPath = '/Users/chenxiong/个人项目/KCNative/Demos/Demo/kc.config.json';
 
