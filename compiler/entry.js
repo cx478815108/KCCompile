@@ -24,3 +24,6 @@ const copyToDistFolder = (enterConfigPath = '')=> {
 
 builder.setConfigJSONPath(copyToDistFolder(configJSONPath));
 builder.build();
+
+// to-do 1. 新增id 选择器类型
+// to-do 2. 完成CSS 选择器的首次匹配
