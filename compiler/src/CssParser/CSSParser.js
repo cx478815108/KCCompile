@@ -56,6 +56,11 @@ class CSSParser {
     parseFinish() {
         this.findVariableIds();
         this.deleteUnuseProperty();
+        this.extrackIdRules();
+    }
+
+    extrackIdRules() {
+        this.styleSheet.extrackIdRules();
     }
 
     processStyleRule(styleSheet, item, mediaQuery = '') {

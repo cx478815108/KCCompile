@@ -6,6 +6,20 @@ class CSSStyleSheet {
         this.styleRuleMedias    = {};
         this.variablePools      = {};
         this.mediaVariablePools = {};
+        this.idRules            = {};
+    }
+
+    extrackIdRules() {
+        for (let cssRuleSelector in this.styleRules) {
+            const list = cssRuleSelector.trim().split(' ');
+            if (list.length === 1) {
+                const selector = list[0];
+                if (selector.startsWith('#')) {
+                    this.idRules[selector] = this.styleRules[selector];
+                    delete this.styleRules[selector];
+                }
+            }
+        }
     }
 
     setStyleRule(selector, cssStyleRule, mediaQuery = '') {
