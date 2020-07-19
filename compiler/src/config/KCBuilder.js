@@ -43,7 +43,6 @@ class KCBuilder {
 
         this.saveConfigJSON();
         this.saveASTCollection();
-        console.log('[Success] 编译完成✅✅✅');
     }
 
     saveConfigJSON() {

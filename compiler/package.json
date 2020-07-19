@@ -1,4 +1,6 @@
 {
+  "name": "kc_compiler",
+  "version": "1.0.0",
   "dependencies": {
     "acorn": "^7.1.0",
     "css-select": "^2.1.0",

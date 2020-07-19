@@ -1,6 +1,6 @@
 class ASTComponentNode {
     constructor() {
-        this.type          = "KCASTComponentNode";
+        this.type          = "KCASTComponentProxyNode";
         this.content       = null;
         this.componentName = "";
         this.path          = "";

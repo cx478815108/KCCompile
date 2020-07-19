@@ -21,6 +21,9 @@ class KCFile {
         this.scriptImportPaths = [];
         this.script            = '';
         this.templateASTNode   = null;
+        this.existsJs          = false;
+        this.existsSs          = false;
+        this.existsAST         = false;
         this.readKCFile(filePath);
     }
 
@@ -38,9 +41,9 @@ class KCFile {
     writeAssets() {
         const baseFolderPath = path.dirname(this.filePath);
         const fileName       = path.basename(this.filePath);
-        this.writeJS(baseFolderPath, fileName);
-        this.writeCSS(baseFolderPath, fileName);
-        this.writeAST(baseFolderPath, fileName);
+        this.existsJs  = this.writeJS(baseFolderPath, fileName);
+        this.existsSs  = this.writeCSS(baseFolderPath, fileName);
+        this.existsAST = this.writeAST(baseFolderPath, fileName);
     }
 
     writeJS(baseFolderPath, fileName) {
@@ -60,7 +63,9 @@ class KCFile {
             this.script = this.script.trim();
             const jsPath = path.resolve(baseFolderPath, `${fileName}.js`);
             fs.writeFileSync(jsPath, this.script);
+            return true;
         }
+        return false;
     }
 
     writeCSS(baseFolderPath, fileName) {
@@ -79,7 +84,9 @@ class KCFile {
             const cssText = JSON.stringify(cssParser.styleSheet, null, 2);
             const styleSheetPath = path.resolve(baseFolderPath, `${fileName}.ss`);
             fs.writeFileSync(styleSheetPath, cssText);
+            return true;
         }
+        return false;
     }
 
     writeAST(baseFolderPath, fileName) {
@@ -87,7 +94,7 @@ class KCFile {
         const data = JSON.parse(JSON.stringify(this.templateASTNode));
         const dataText = JSON.stringify(data, null, 2);
         fs.writeFileSync(astPath, dataText);
-
+        return true;
     }
 }
 
